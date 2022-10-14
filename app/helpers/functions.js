@@ -1,12 +1,15 @@
 var dateTime = require('node-datetime');
 var ip = require('ip');
-
+var sanitizer = require('sanitizer');
 
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const mustache = require('mustache');
 
-
+const crypto = require("crypto");
+const algorithm = 'aes-256-cbc';
+const key = "jkasdlkajsklj3242342^$@#%@#$%";
+const iv = "lkjglksjwl@#$@#$@xxx";
 
 const hashEquals = require('hash-equals');
 
@@ -31,13 +34,114 @@ module.exports = {
         }
     },
 
-
+    sanitizeString: function(source){
+        var ret = sanitizer.escape(source);
+        return ret;
+    },
 
     getClientIp: function(){
         return ip.address();
     },
 
+    signHmacSha512(key, str) {
+        let hmac = crypto.createHmac("sha512", key);
+        let signed = hmac.update(Buffer.from(str, 'utf-8')).digest("hex");
+        return signed
+    },
 
+    getKeySHA512(){
+        let key = "kjsdfjhsdfkljh.,mnsdf15213432t13432516s8d64fs sdlkjfrlk4n5t,nskndfs*#@$%#@$%907lkkl.jalksjdlkajsdlkjaslkdj_+3234234"; //SHA512 Key Standart
+        return key;
+    },
+
+    encrypt(text) {
+        let cipher = crypto.createCipheriv(algorithm, Buffer.from(key), iv);
+        let encrypted = cipher.update(text.toString());
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        return encrypted.toString('hex');
+    },
+
+    decrypt(text) {
+        // let iv = Buffer.from(text.iv, 'hex');
+        let encryptedText = Buffer.from(text, 'hex');
+        let decipher = crypto.createDecipheriv(algorithm, Buffer.from(key), iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
+    },
+
+    encryptPassword(known_string){ //Author Prayogi
+        let key = this.getKeySHA512(); //SHA512 Key Standart
+        let hmac = crypto.createHmac("sha512", key);
+        let signed = hmac.update(Buffer.from(known_string, 'utf-8')).digest("hex");
+
+        console.log('known_string', known_string);
+        console.log('signed', signed);
+
+        return signed
+    },
+
+    validatePassword(known_string, encrypted_string){ //Author Prayogi
+        let key = this.getKeySHA512(); //SHA512 Key Standart
+        let hmac = crypto.createHmac("sha512", key);
+        let signed = hmac.update(Buffer.from(known_string, 'utf-8')).digest("hex");
+
+        console.log('known_string', known_string);
+        console.log('signed', signed);
+        console.log('encrypted_string', encrypted_string);
+
+        try{
+            if(hashEquals(signed, encrypted_string)){
+                return true;
+            }else{
+                return false;
+            }
+        }catch(err){
+            return false;
+        }
+    },
+
+    encryptToken(text) {
+        const AES_METHOD = 'aes-256-cbc';
+        const IV_LENGTH = 16; // For AES, this is always 16, checked with php
+
+        const password = 'abcdefghijklmnopqrstuvwxyz123456$'; // Must be 256 bytes (32 characters)
+        if (process.versions.openssl <= '1.0.1f') {
+            throw new Error('OpenSSL Version too old, vulnerability to Heartbleed')
+        }
+
+        let iv = crypto.randomBytes(IV_LENGTH);
+        let cipher = crypto.createCipheriv(AES_METHOD, new Buffer(password), iv);
+        let encrypted = cipher.update(text);
+
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+        return iv.toString('hex') + ':' + encrypted.toString('hex');
+    },
+
+    decryptToken(text) {
+        const password = '654321abcdefghiujklmnopqstuvwxyz$'; // Must be 256 bytes (32 characters)
+
+        let textParts = text.split(':');
+        let iv = new Buffer(textParts.shift(), 'hex');
+        let encryptedText = new Buffer(textParts.join(':'), 'hex');
+        let decipher = crypto.createDecipheriv('aes-256-cbc', new Buffer(password), iv);
+        let decrypted = decipher.update(encryptedText);
+
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+        return decrypted.toString();
+    },
+
+    makeRandomToken() {
+        let lengthOfCode = 40;
+        let possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
+        let text = "";
+        for (let i = 0; i < lengthOfCode; i++) {
+          text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+          return text;
+    },
     generateRandomString() {
         let lengthOfCode = 4;
         let possible = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -288,4 +392,9 @@ module.exports = {
         return this.GetFormattedDate(d2);
     },
 
+    removeSpecialCharacter(characters){
+        var formatted = characters.replace(/[^a-zA-Z ]/g, "");
+
+        return formatted;
+    }
 }
