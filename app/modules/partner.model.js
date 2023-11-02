@@ -214,6 +214,66 @@ module.exports = {
 
                 var dataInsertDetailFinal = [];
 
+                var cutoff_hari_catering  = 2;
+                var cutoff_jam_catering  = "14:00:00";
+
+                var cutoff_hari_frozen  = 3;
+                var cutoff_jam_frozen  = "14:00:00";
+
+                //mini meals
+                let cutoff_jam_mm = "14:00:00";
+                let cutoff_hari_mm = 2;
+
+                var $q_config = `SELECT config_harga_addons100, config_harga_addons150,config_min_hari_transaksi as min_catering,
+                            config_cutoff as jam_catering,config_min_hari_frozen as min_frozen,
+                            config_cutoff_frozen as jam_frozen, config_quota_is_active, config_quota_catering,config_quota_frozen,config_harga_addons_mm as harga_addons_mm,config_cutoff_mm as jam_mm, config_min_hari_mm as min_mm,config.config_quota_mm FROM config where config_id = '1'`;
+                connection = await connSentral.getConnection();
+                var listConfig = await connection.executeQuery($q_config);
+                connection.close();
+
+                if(typeof listConfig[0]['min_catering'] != 'undefined'){
+                    cutoff_hari_catering = listConfig[0]['min_catering'];
+                }
+
+                if(typeof listConfig[0]['jam_catering'] != 'undefined'){
+                    cutoff_jam_catering = listConfig[0]['jam_catering'];
+                }
+                if(typeof listConfig[0]['min_frozen'] != 'undefined'){
+                    cutoff_hari_frozen = listConfig[0]['min_frozen'];
+                }
+
+                if(typeof listConfig[0]['jam_frozen'] != 'undefined'){
+                    cutoff_jam_frozen = listConfig[0]['jam_frozen'];
+                }
+
+                //mini meals
+
+                if(typeof listConfig[0]['jam_mm'] != 'undefined'){
+                    cutoff_jam_mm = listConfig[0]['jam_mm'];
+                }
+
+                if(typeof listConfig[0]['min_mm'] != 'undefined'){
+                    cutoff_hari_mm = listConfig[0]['min_mm'];
+                }
+
+                //ambil cutoff catering
+                var cutoff_catering_final = functions.addDays(date_now,cutoff_hari_catering);
+                var cutoff_catering_final2 = functions.formatDate(cutoff_catering_final)+ " " + cutoff_jam_catering;
+
+                let where_catering = ` and cart_date_kirim >= '`+functions.formatDate(cutoff_catering_final)+`'`;
+                if(cutoff_catering_final > cutoff_catering_final2){
+                    where_catering = ` and cart_date_kirim > '`+functions.formatDate(cutoff_catering_final)+`'`;
+                }
+
+
+                let cutoff_mm_final = functions.addDays(date_now,cutoff_hari_mm);
+                let cutoff_mm_final2 = functions.formatDate(cutoff_mm_final)+ " " + cutoff_jam_mm;
+
+                let where_mm = ` and cart_date_kirim >= '`+functions.formatDate(cutoff_mm_final)+`'`;
+                if(cutoff_mm_final > cutoff_mm_final2){
+                    where_mm = ` and cart_date_kirim > '`+functions.formatDate(cutoff_mm_final)+`'`;
+                }
+
                 if (true) {
 
                     if (dataDetailCart.length > 0) {
@@ -384,7 +444,7 @@ module.exports = {
 
                                     // Get Data Catering
                                     var dataCatering;
-                                    $q = `SELECT * FROM cart_jadwal_menu WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `'`;
+                                    $q = `SELECT * FROM cart_jadwal_menu WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `' ` + where_catering;
                                     // (async () => {
                                     // console.log('Query : ' + $q);
                                     connection = await connSentral.getConnection();
@@ -522,7 +582,7 @@ module.exports = {
 
                                     // Get Data Mini Meals
                                     var dataMiniMeals;
-                                    $q = `SELECT * FROM cart_jadwal_mm WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `'`;
+                                    $q = `SELECT * FROM cart_jadwal_mm WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `' ` + where_mm;
                                     // (async () => {
                                     // console.log('Query : ' + $q);
                                     connection = await connSentral.getConnection();
@@ -633,7 +693,7 @@ module.exports = {
 
                                                     // Get Data Catering
                                                     var dataCatering2;
-                                                    $q = `SELECT * FROM cart_jadwal_menu WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `'`;
+                                                    $q = `SELECT * FROM cart_jadwal_menu WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `' ` + where_catering;
                                                     // (async () => {
                                                     // console.log('Query Catering Bundlue: ' + $q);
                                                     connection = await connSentral.getConnection();
@@ -778,7 +838,7 @@ module.exports = {
 
                                                     // Get Data Catering
                                                     var dataMiniMeals2;
-                                                    $q = `SELECT * FROM cart_jadwal_mm WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `'`;
+                                                    $q = `SELECT * FROM cart_jadwal_mm WHERE shopping_cart_id = '` + shopping_cart_id + `' and members_id = '` + members_id + `' ` + where_catering;
                                                     // (async () => {
                                                     // console.log('Query Catering Bundlue: ' + $q);
                                                     connection = await connSentral.getConnection();
@@ -1277,7 +1337,7 @@ module.exports = {
                 console.log(dataInsert);
 
                 var username = "grouu";
-                var password = "Gr0uD3v3l0per";
+                var password = "shiny-shiny-password";
                 var auth = functions.base64_encode(username + ':' + password);
 
                 var URL = anything.outletAPIphp + 'create_order.php';
@@ -1435,6 +1495,171 @@ module.exports = {
 
 
 
+    },
+
+    callbackGopayV2: async function (req, res) {
+        // partner oper data status (done)
+        // Insert data callback partner (done)
+        // Update Status payment partner (done)
+        // jika status terbayar (done)
+        // insert orders cechkout ke table orders (done)
+        // insert orders detail ambil data dari shopping cart where invoice number (done)
+        // insert data jadwal catering, frozen, produk ke data jadwal order catering, frozen, produk (tinggal produk ready to eat)
+        // get data detail pembelian untuk data di email
+        // send email
+
+        var $q;
+
+
+
+
+
+        var data = req.body;
+        var transaction_time = data.transaction_time;
+        var transaction_status = data.transaction_status;
+        var transaction_id = data.transaction_id;
+        var status_message = data.status_message;
+        var status_code = data.status_code;
+        var signature_key = data.signature_key;
+        var payment_type = data.payment_type;
+        var order_id = data.order_id; // invoice id
+        var merchant_id = data.merchant_id;
+        var gross_amount = data.gross_amount;
+        var fraud_status = data.fraud_status;
+        var currency = data.currency;
+
+        console.log('callback gopay');
+        console.log(data);
+
+        var dataInsert = [
+            status_message,
+            transaction_id,
+            order_id,
+            gross_amount,
+            payment_type,
+            transaction_time,
+            transaction_status,
+            signature_key,
+            JSON.stringify(data)
+        ];
+
+        // Insert data callback
+
+        $q = `INSERT INTO partner_callback
+            (status_message, transaction_id, invoice_id, gross_amount, payment_type, transaction_time, transaction_status, signature_key, text_callback)
+            VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+        console.log('Query Insert : ' + $q);
+        var connection = await connSentral.getConnection();
+        empResult = await connection.executeQuery($q, dataInsert);
+        connection.close();
+        console.log(empResult);
+
+        if (typeof empResult == 'undefined') {
+            var returnData = JSON.stringify({ status: false, message: 'Insert Callback Error' });
+            res.setHeader('Content-Type', 'application/json');
+            res.send(returnData);
+            return false;
+        }
+
+        // end
+        $q = `SELECT * FROM payment_partner WHERE invoice_id = '` + order_id + `'`;
+        connection = await connSentral.getConnection();
+        dataPayment = await connection.executeQuery($q);
+        connection.close();
+        if (typeof empResult == 'undefined') {
+            var returnData = JSON.stringify({ status: false, message: 'Insert Callback Error' });
+            res.setHeader('Content-Type', 'application/json');
+            res.send(returnData);
+            return false;
+        }
+
+        var status_code_ = '200';
+        var gross_amount_ = gross_amount + '.00';
+        var serverKey = anything.serverKey;
+
+        var gabung = order_id + status_code_ + gross_amount_ + serverKey;
+
+        var hasilGabung = sha512(gabung);
+
+        if (signature_key !== hasilGabung) {
+            var returnData = JSON.stringify({ status: false, message: 'Error Signature key' });
+            res.setHeader('Content-Type', 'application/json');
+            res.send(returnData);
+            return false;
+        }
+
+        if (transaction_status === 'settlement') {
+            let dataUpdate = {
+                    transaction_status: transaction_status
+                }
+
+                doTheSettlement(rows);
+
+            } else {
+                returnData = JSON.stringify({ status: true, message: 'Sucsessfully' });
+                res.setHeader('Content-Type', 'application/json');
+                res.send(returnData);
+            }
+        }
+    },
+    callbackGopay: async function (req, res) {
+        console.log('callback gopay');
+        console.log(data);
+
+        var data = req.body;
+        var transaction_time = data.transaction_time;
+        var transaction_status = data.transaction_status;
+        var transaction_id = data.transaction_id;
+        var status_message = data.status_message;
+        var status_code = data.status_code;
+        var signature_key = data.signature_key;
+        var payment_type = data.payment_type;
+        var order_id = data.order_id; // invoice id
+        var merchant_id = data.merchant_id;
+        var gross_amount = data.gross_amount;
+        var fraud_status = data.fraud_status;
+        var currency = data.currency;
+
+        var dataInsert = {
+            status_message: status_message,
+            transaction_id: transaction_id,
+            invoice_id: order_id,
+            gross_amount: gross_amount,
+            payment_type: payment_type,
+            transaction_time: transaction_time,
+            transaction_status: transaction_status,
+            signature_key: signature_key,
+            text_callback: JSON.stringify(data)
+        };
+
+        await partnerCallback.insert(dataInsert, function (error, rows) {
+            if (error) {
+                returnData = JSON.stringify({ status: false, message: 'Member Address Query Error.' });
+                res.setHeader('Content-Type', 'application/json');
+                res.send(returnData);
+                return false;
+            } else {
+                // sudah terbayar
+                if (transaction_status === 'settlement') {
+
+                    let dataUpdate = {
+                        transaction_status: transaction_status
+                    }
+
+                    doTheSettlement(rows);
+
+                    // update status payment jadi settlement
+                    // update status order jadi 2
+                    // send email sudah payment
+                } else {
+                    returnData = JSON.stringify({ status: true, message: 'Sucsessfully' });
+                    res.setHeader('Content-Type', 'application/json');
+                    res.send(returnData);
+                }
+            }
+        });
     }
 
 }
